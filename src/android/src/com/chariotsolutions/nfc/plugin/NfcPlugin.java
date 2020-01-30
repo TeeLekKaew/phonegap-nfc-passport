@@ -889,8 +889,12 @@ public class NfcPlugin extends CordovaPlugin implements NfcAdapter.OnNdefPushCom
             sendEvent(TAG_DEFAULT, json);
         }else{
             JSONObject json = Util.tagToJSON(tag);
-            json.put("errorMessage", "Require Passport Data");
-
+            
+            try{
+                json.put("errorMessage", "Require Passport Data");
+            } catch (JSONException e) {
+                Log.e(TAG, "Failed to convert tag into json: " + tag.toString(), e);
+            }
             sendEvent(TAG_DEFAULT, json);
             return;
         }
