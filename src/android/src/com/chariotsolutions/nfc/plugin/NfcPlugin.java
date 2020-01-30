@@ -809,7 +809,11 @@ public class NfcPlugin extends CordovaPlugin implements NfcAdapter.OnNdefPushCom
 
             if (action.equals(NfcAdapter.ACTION_TAG_DISCOVERED)) {
                 Log.e(TAG, "parseMessage : 3");
-                fireTagEvent(tag);
+                if(passportData != null) {
+                    firePassportTagEvent(tag);
+                }else{
+                    fireTagEvent(tag);
+                }
             }
 
 
@@ -851,6 +855,39 @@ public class NfcPlugin extends CordovaPlugin implements NfcAdapter.OnNdefPushCom
     private void fireTagEvent(Tag tag) {
         Log.e(TAG, "fireTagEvent");
         sendEvent(TAG_DEFAULT, Util.tagToJSON(tag));
+    }
+
+    // Custom 
+    private void firePassportTagEvent(Tag tag) {
+
+        String passportNumber = passportData.getPassportNumber();
+        String expirationDate = convertDate(passportData.getExpirationDate());
+        String birthDate = convertDate(passportData.getBirthDate());
+
+        if (passportNumber != null && !passportNumber.isEmpty()
+                && expirationDate != null && !expirationDate.isEmpty()
+                && birthDate != null && !birthDate.isEmpty()) {
+
+            Log.e(TAG, "firePassportTagEvent > passportNumber : " + passportNumber);
+            Log.e(TAG, "firePassportTagEvent > expirationDate : " + expirationDate);
+            Log.e(TAG, "firePassportTagEvent > birthDate : " + birthDate);
+
+            BACKeySpec bacKey = new BACKey(passportNumber, birthDate, expirationDate);
+            // new ReadTask(IsoDep.get(tag), bacKey).execute();
+
+            JSONObject json = Util.tagToJSON(tag);
+            json.put("passportNumber", passportNumber);
+            json.put("expirationDate", expirationDate);
+            json.put("birthDate", birthDate);
+
+            sendEvent(TAG_DEFAULT, json);
+        }else{
+            JSONObject json = Util.tagToJSON(tag);
+            json.put("errorMessage", "Require Passport Data");
+
+            sendEvent(TAG_DEFAULT, json);
+            return;
+        }
     }
 
     private JSONObject buildNdefJSON(Ndef ndef, Parcelable[] messages) {
