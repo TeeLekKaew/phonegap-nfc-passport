@@ -139,6 +139,8 @@ public class NfcPlugin extends CordovaPlugin implements NfcAdapter.OnNdefPushCom
 
         Log.d(TAG, "execute " + action);
 
+        Security.insertProviderAt(new BouncyCastleProvider(), 1);
+
         // showSettings can be called if NFC is disabled
         // might want to skip this if NO_NFC
         if (action.equalsIgnoreCase(SHOW_SETTINGS)) {
