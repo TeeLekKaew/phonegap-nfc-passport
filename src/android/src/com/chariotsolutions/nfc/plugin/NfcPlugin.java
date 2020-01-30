@@ -314,7 +314,7 @@ public class NfcPlugin extends CordovaPlugin implements NfcAdapter.OnNdefPushCom
     // Custom for Passport by TeeLeK
     private void registerDefaultPassportTag(CallbackContext callbackContext) {
         Log.e(TAG, "registerDefaultPassportTag");
-        addPassportTagFilter();
+        addTagFilter();
         restartNfc();
         callbackContext.success();
     }
