@@ -876,9 +876,15 @@ public class NfcPlugin extends CordovaPlugin implements NfcAdapter.OnNdefPushCom
             // new ReadTask(IsoDep.get(tag), bacKey).execute();
 
             JSONObject json = Util.tagToJSON(tag);
-            json.put("passportNumber", passportNumber);
-            json.put("expirationDate", expirationDate);
-            json.put("birthDate", birthDate);
+
+
+            try{
+                json.put("passportNumber", passportNumber);
+                json.put("expirationDate", expirationDate);
+                json.put("birthDate", birthDate);
+            } catch (JSONException e) {
+                Log.e(TAG, "Failed to convert tag into json: " + tag.toString(), e);
+            }
 
             sendEvent(TAG_DEFAULT, json);
         }else{
