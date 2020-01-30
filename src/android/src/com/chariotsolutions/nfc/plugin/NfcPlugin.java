@@ -132,6 +132,7 @@ public class NfcPlugin extends CordovaPlugin implements NfcAdapter.OnNdefPushCom
     private CallbackContext handoverCallback;
 
     private PassportData passportData;
+    private static String ACTION_PASSPORT_TAG_DISCOVERED = "ACTION_PASSPORT_TAG_DISCOVERED";
 
     @Override
     public boolean execute(String action, JSONArray data, CallbackContext callbackContext) throws JSONException {
@@ -313,7 +314,7 @@ public class NfcPlugin extends CordovaPlugin implements NfcAdapter.OnNdefPushCom
     // Custom for Passport by TeeLeK
     private void registerDefaultPassportTag(CallbackContext callbackContext) {
         Log.e(TAG, "registerDefaultPassportTag");
-        addTagFilter();
+        addPassportTagFilter();
         restartNfc();
         callbackContext.success();
     }
@@ -577,6 +578,11 @@ public class NfcPlugin extends CordovaPlugin implements NfcAdapter.OnNdefPushCom
             }
         }
     }
+    // Custom
+    private void addPassportTagFilter() {
+        Log.e(TAG, "addPassportTagFilter");
+        intentFilters.add(new IntentFilter(ACTION_PASSPORT_TAG_DISCOVERED));
+    }
 
     private void addTagFilter() {
         Log.e(TAG, "addTagFilter");
@@ -807,6 +813,11 @@ public class NfcPlugin extends CordovaPlugin implements NfcAdapter.OnNdefPushCom
 
             if (action.equals(NfcAdapter.ACTION_TAG_DISCOVERED)) {
                 Log.e(TAG, "parseMessage : 3");
+                fireTagEvent(tag);
+            }
+
+            if (action.equals(ACTION_PASSPORT_TAG_DISCOVERED)) {
+                Log.e(TAG, "parseMessage : 4");
                 fireTagEvent(tag);
             }
 
