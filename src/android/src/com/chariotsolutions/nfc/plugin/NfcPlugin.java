@@ -1071,8 +1071,8 @@ public class NfcPlugin extends CordovaPlugin implements NfcAdapter.OnNdefPushCom
 
                     json.put("id", timeStamp);
                     json.put("passportNumber", mrzInfo.getDocumentNumber());
-                    json.put("expirationDate", mrzInfo.getExpirationDate());
-                    json.put("birthDate", mrzInfo.getBirthDate());
+                    json.put("expirationDate", mrzInfo.getDateOfExpiry());
+                    json.put("birthDate", mrzInfo.getDateOfBirth());
                     json.put("firstName", mrzInfo.getSecondaryIdentifier().replace("<", ""));
                     json.put("lastName", mrzInfo.getPrimaryIdentifier().replace("<", ""));
                     json.put("gender", mrzInfo.getGender().toString());
