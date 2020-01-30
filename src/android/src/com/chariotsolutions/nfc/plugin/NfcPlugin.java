@@ -1083,7 +1083,7 @@ public class NfcPlugin extends CordovaPlugin implements NfcAdapter.OnNdefPushCom
                         json.put("imageBase64", imageBase64);
                     }
                 } catch (JSONException e) {
-                    json.put("errorMessage", e.getMessage());
+              
                     Log.e(TAG, "Failed to convert tag into json: " , e);
                 }
                 Log.e(TAG, "ReadTask > onPostExecute json : " + json);
