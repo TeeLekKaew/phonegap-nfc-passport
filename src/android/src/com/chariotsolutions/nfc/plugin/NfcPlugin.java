@@ -873,20 +873,20 @@ public class NfcPlugin extends CordovaPlugin implements NfcAdapter.OnNdefPushCom
             Log.e(TAG, "firePassportTagEvent > birthDate : " + birthDate);
 
             BACKeySpec bacKey = new BACKey(passportNumber, birthDate, expirationDate);
-            // new ReadTask(IsoDep.get(tag), bacKey).execute();
+            new ReadTask(IsoDep.get(tag), bacKey).execute();
 
-            JSONObject json = Util.tagToJSON(tag);
+            // JSONObject json = Util.tagToJSON(tag);
 
 
-            try{
-                json.put("passportNumber", passportNumber);
-                json.put("expirationDate", expirationDate);
-                json.put("birthDate", birthDate);
-            } catch (JSONException e) {
-                Log.e(TAG, "Failed to convert tag into json: " + tag.toString(), e);
-            }
+            // try{
+            //     json.put("passportNumber", passportNumber);
+            //     json.put("expirationDate", expirationDate);
+            //     json.put("birthDate", birthDate);
+            // } catch (JSONException e) {
+            //     Log.e(TAG, "Failed to convert tag into json: " + tag.toString(), e);
+            // }
 
-            sendEvent(TAG_DEFAULT, json);
+            // sendEvent(TAG_DEFAULT, json);
         }else{
             JSONObject json = Util.tagToJSON(tag);
             
@@ -899,6 +899,219 @@ public class NfcPlugin extends CordovaPlugin implements NfcAdapter.OnNdefPushCom
             return;
         }
     }
+
+
+    private class ReadTask extends AsyncTask<Void, Void, Exception> {
+
+        private IsoDep isoDep;
+        private BACKeySpec bacKey;
+
+        public ReadTask(IsoDep isoDep, BACKeySpec bacKey) {
+            this.isoDep = isoDep;
+            this.bacKey = bacKey;
+        }
+
+        private COMFile comFile;
+        private SODFile sodFile;
+        private DG1File dg1File;
+        private DG2File dg2File;
+        private String imageBase64;
+        private Bitmap bitmap;
+
+        private String trackLog = "track : 0, ";
+
+        @Override
+        protected Exception doInBackground(Void... params) {
+
+            try {
+
+                                CardService cardService = CardService.getInstance(isoDep);
+                                cardService.open();
+                
+                                PassportService service = new PassportService(cardService);
+                                service.open();
+                                Log.e(TAG, "ReadTask > doInBackground : 1");
+                                boolean paceSucceeded = false;
+                                try {
+                                Log.e(TAG, "ReadTask > doInBackground : 1.1.1");
+                                    CardAccessFile cardAccessFile = new CardAccessFile(service.getInputStream(PassportService.EF_CARD_ACCESS));
+                                Log.e(TAG, "ReadTask > doInBackground : 1.1.2");
+                                    Collection<PACEInfo> paceInfos = cardAccessFile.getPACEInfos();
+                
+                                    if (paceInfos != null && paceInfos.size() > 0) {
+                                        PACEInfo paceInfo = paceInfos.iterator().next();
+                                        service.doPACE(bacKey, paceInfo.getObjectIdentifier(), PACEInfo.toParameterSpec(paceInfo.getParameterId()));
+                                        paceSucceeded = true;
+                                    } else {
+                                        paceSucceeded = true;
+                                    }
+                                } catch (Exception e) {
+                                    Log.e(TAG, "ReadTask > Exception : " + e.getMessage());
+                                }
+                                Log.e(TAG, "ReadTask > doInBackground : 1.1");
+                                service.sendSelectApplet(paceSucceeded);
+                                Log.e(TAG, "ReadTask > doInBackground : 1.2");
+                                if (!paceSucceeded) {
+                                    try {
+                                        Log.e(TAG, "ReadTask > doInBackground : 1.3");
+                                        service.getInputStream(PassportService.EF_COM).read();
+                                        Log.e(TAG, "ReadTask > doInBackground : 1.4");
+                                    } catch (Exception e) {
+                                        Log.e(TAG, "ReadTask > doInBackground : 1.5");
+                                        Log.e(TAG, "ReadTask > doInBackground : bacKey.getDocumentNumber() > " + bacKey.getDocumentNumber());
+                                        Log.e(TAG, "ReadTask > doInBackground : bacKey.getDateOfBirth() > " + bacKey.getDateOfBirth());
+                                        Log.e(TAG, "ReadTask > doInBackground : bacKey.getDateOfExpiry() > " + bacKey.getDateOfExpiry());
+                                        service.doBAC(bacKey);
+                
+                                        Log.e(TAG, "ReadTask > doInBackground : 1.6");
+                                    }
+                                }
+                
+                                LDS lds = new LDS();
+                
+                                CardFileInputStream comIn = service.getInputStream(PassportService.EF_COM);
+                                lds.add(PassportService.EF_COM, comIn, comIn.getLength());
+                                comFile = lds.getCOMFile();
+                                Log.e(TAG, "ReadTask > doInBackground : 2");
+                                CardFileInputStream sodIn = service.getInputStream(PassportService.EF_SOD);
+                                lds.add(PassportService.EF_SOD, sodIn, sodIn.getLength());
+                                sodFile = lds.getSODFile();
+                                Log.e(TAG, "ReadTask > doInBackground : 2.1");
+                                CardFileInputStream dg1In = service.getInputStream(PassportService.EF_DG1);
+                                lds.add(PassportService.EF_DG1, dg1In, dg1In.getLength());
+                                dg1File = lds.getDG1File();
+                                Log.e(TAG, "ReadTask > doInBackground : 2.2");
+                                CardFileInputStream dg2In = service.getInputStream(PassportService.EF_DG2);
+                                lds.add(PassportService.EF_DG2, dg2In, dg2In.getLength());
+                                dg2File = lds.getDG2File();
+                                Log.e(TAG, "ReadTask > doInBackground : 2.3");
+                                List<FaceImageInfo> allFaceImageInfos = new ArrayList<>();
+                                List<FaceInfo> faceInfos = dg2File.getFaceInfos();
+                                for (FaceInfo faceInfo : faceInfos) {
+                                    allFaceImageInfos.addAll(faceInfo.getFaceImageInfos());
+                                }
+                                Log.e(TAG, "ReadTask > doInBackground : 2.4");
+                                if (!allFaceImageInfos.isEmpty()) {
+                                    Log.e(TAG, "ReadTask > doInBackground : 2.5");
+                                    FaceImageInfo faceImageInfo = allFaceImageInfos.iterator().next();
+                                    Log.e(TAG, "ReadTask > doInBackground : 2.5.1");
+                                    int imageLength = faceImageInfo.getImageLength();
+                                    Log.e(TAG, "ReadTask > doInBackground : 2.5.2");
+                                    DataInputStream dataInputStream = new DataInputStream(faceImageInfo.getImageInputStream());
+                                    Log.e(TAG, "ReadTask > doInBackground : 2.5.3");
+                                    byte[] buffer = new byte[imageLength];
+                                    Log.e(TAG, "ReadTask > doInBackground : 2.5.4");
+                                    dataInputStream.readFully(buffer, 0, imageLength);
+                                    Log.e(TAG, "ReadTask > doInBackground : 2.5.5");
+                                    InputStream inputStream = new ByteArrayInputStream(buffer, 0, imageLength);
+                                    Log.e(TAG, "ReadTask > doInBackground : 2.5.6");
+                                    // bitmap = ImageUtil.decodeImage(
+                                    //         getActivity(), faceImageInfo.getMimeType(), inputStream);
+                                    Log.e(TAG, "ReadTask > doInBackground : 2.5.7");
+                                    imageBase64 = Base64.encodeToString(buffer, Base64.DEFAULT);
+                                    Log.e(TAG, "ReadTask > imageBase64 : " + imageBase64);
+                                    Log.e(TAG, "ReadTask > doInBackground : 2.5.8");
+                                }
+                                Log.e(TAG, "ReadTask > doInBackground : 2.6");
+                            } catch (Exception e) {
+                                Log.e(TAG, "ReadTask > Exception : " + e.getMessage());
+                                return e;
+                            }
+                            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Exception result) {
+            // mainLayout.setVisibility(View.VISIBLE);
+            // loadingLayout.setVisibility(View.GONE);
+            String timeStamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
+            if (result == null) {
+                Log.e(TAG, "ReadTask > onPostExecute : result == null");
+
+                // Intent intent;
+                // if (getCallingActivity() != null) {
+                //     intent = new Intent();
+                // } else {
+                //     intent = new Intent(MainActivity.this, ResultActivity.class);
+                // }
+
+                MRZInfo mrzInfo = dg1File.getMRZInfo();
+
+
+
+
+                // intent.putExtra(ResultActivity.KEY_FIRST_NAME, mrzInfo.getSecondaryIdentifier().replace("<", ""));
+                // intent.putExtra(ResultActivity.KEY_LAST_NAME, mrzInfo.getPrimaryIdentifier().replace("<", ""));
+                // intent.putExtra(ResultActivity.KEY_GENDER, mrzInfo.getGender().toString());
+                // intent.putExtra(ResultActivity.KEY_STATE, mrzInfo.getIssuingState());
+                // intent.putExtra(ResultActivity.KEY_NATIONALITY, mrzInfo.getNationality());
+
+                if (bitmap != null) {
+                    // if (encodePhotoToBase64) {
+                        // intent.putExtra(ResultActivity.KEY_PHOTO_BASE64, imageBase64);
+                    // } else {
+                    //     double ratio = 320.0 / bitmap.getHeight();
+                    //     int targetHeight = (int) (bitmap.getHeight() * ratio);
+                    //     int targetWidth = (int) (bitmap.getWidth() * ratio);
+
+                    //     intent.putExtra(ResultActivity.KEY_PHOTO,
+                    //         Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, false));
+                    // }
+                }
+
+                // if (getCallingActivity() != null) {
+                //     setResult(Activity.RESULT_OK, intent);
+                //     finish();
+                // } else {
+                //     startActivity(intent);
+                // }
+
+                JSONObject json = new JSONObject();
+                try {
+
+                    json.put("id", timeStamp);
+                    json.put("passportNumber", mrzInfo.getDocumentNumber());
+                    json.put("expirationDate", mrzInfo.getExpirationDate());
+                    json.put("birthDate", mrzInfo.getBirthDate());
+                    json.put("firstName", mrzInfo.getSecondaryIdentifier().replace("<", ""));
+                    json.put("lastName", mrzInfo.getPrimaryIdentifier().replace("<", ""));
+                    json.put("gender", mrzInfo.getGender().toString());
+                    json.put("state", mrzInfo.getIssuingState());
+                    json.put("nationality", mrzInfo.getNationality());
+            
+                    if (imageBase64 != null) {
+                        json.put("imageBase64", imageBase64);
+                    }
+                } catch (JSONException e) {
+                    json.put("errorMessage", e.getMessage());
+                    Log.e(TAG, "Failed to convert tag into json: " , e);
+                }
+                Log.e(TAG, "ReadTask > onPostExecute json : " + json);
+                sendEvent(TAG_DEFAULT, json);
+
+            } else {
+                Log.e(TAG, "ReadTask > onPostExecute : result != null");
+                Log.e(TAG, "ReadTask > onPostExecute : ERROR ::: " + UtilPassport.exceptionStack(result));
+                // Snackbar.make(passportNumberView, exceptionStack(result), Snackbar.LENGTH_LONG).show();
+
+                JSONObject json = new JSONObject();
+                try {
+                    json.put("id", timeStamp);
+                    json.put("errorMessage", UtilPassport.exceptionStack(result));
+
+                } catch (JSONException e) {
+                    Log.e(TAG, "Failed to convert tag into json: " , e);
+                }
+
+                sendEvent(TAG_DEFAULT, json);
+            }
+        }
+
+    }
+
+
+
+
 
     private JSONObject buildNdefJSON(Ndef ndef, Parcelable[] messages) {
 
