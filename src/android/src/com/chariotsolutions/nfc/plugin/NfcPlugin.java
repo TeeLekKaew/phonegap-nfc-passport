@@ -35,7 +35,7 @@ import android.os.Bundle;
 import android.os.Parcelable;
 import android.util.Log;
 
-import com.google.gson.Gson;
+
 import static com.chariotsolutions.nfc.plugin.Util.byteArrayToJSON;
 import java.text.SimpleDateFormat;
 import java.util.Locale;
@@ -861,8 +861,8 @@ public class NfcPlugin extends CordovaPlugin implements NfcAdapter.OnNdefPushCom
     private void firePassportTagEvent(Tag tag) {
 
         String passportNumber = passportData.getPassportNumber();
-        String expirationDate = convertDate(passportData.getExpirationDate());
-        String birthDate = convertDate(passportData.getBirthDate());
+        String expirationDate = UtilPassport.convertDate(passportData.getExpirationDate());
+        String birthDate = UtilPassport.convertDate(passportData.getBirthDate());
 
         if (passportNumber != null && !passportNumber.isEmpty()
                 && expirationDate != null && !expirationDate.isEmpty()
