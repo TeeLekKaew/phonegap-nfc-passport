@@ -1,0 +1,8 @@
+dependencies {
+    implementation 'com.google.code.gson:gson:2.8.0'
+    implementation 'org.jmrtd:jmrtd:0.5.5'
+    implementation 'net.sf.scuba:scuba-sc-android:0.0.9'
+    implementation 'com.madgag.spongycastle:prov:1.54.0.0'
+    implementation 'edu.ucar:jj2000:5.2'
+    implementation 'com.github.mhshams:jnbis:1.1.0'
+}
